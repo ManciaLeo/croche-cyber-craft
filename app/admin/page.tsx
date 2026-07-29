@@ -1,14 +1,18 @@
 'use client';
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { 
   Users, 
   MousePointerClick, 
   Activity, 
-  Image as ImageIcon, 
+  ImageIcon, 
   Upload, 
   Edit, 
   Trash2, 
-  Home
+  Home,
+  LayoutDashboard,
+  MessageSquare,
+  Settings
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -48,19 +52,39 @@ export default function AdminDashboard() {
           <h2 className="text-xl font-bold text-white tracking-tight">Fran Admin</h2>
           <p className="text-xs text-stone-500 mt-1">Painel de Controle</p>
         </div>
-        <nav className="flex-1 p-4 space-y-2">
-          <a href="#" className="flex items-center gap-3 px-4 py-3 bg-[#B76E79] text-white rounded-lg transition-colors">
-            <Activity className="w-5 h-5" />
-            <span className="font-medium">Dashboard</span>
-          </a>
-          <a href="#" className="flex items-center gap-3 px-4 py-3 hover:bg-stone-800 rounded-lg transition-colors">
-            <ImageIcon className="w-5 h-5" />
-            <span className="font-medium">Pronta Entrega</span>
-          </a>
-          <a href="/" className="flex items-center gap-3 px-4 py-3 hover:bg-stone-800 rounded-lg transition-colors mt-auto">
+
+        <nav className="flex-1 p-4 flex flex-col gap-2">
+          <Link 
+            href="/admin" 
+            className="flex items-center gap-3 bg-[#B76E79] text-white px-4 py-3 rounded-xl font-medium transition-colors"
+          >
+            <LayoutDashboard className="w-5 h-5" />
+            Dashboard
+          </Link>
+          
+          <Link 
+            href="/admin/inbox" 
+            className="flex items-center gap-3 text-stone-300 hover:bg-stone-800 hover:text-white px-4 py-3 rounded-xl font-medium transition-colors"
+          >
+            <MessageSquare className="w-5 h-5" />
+            Inbox de Mensagens
+          </Link>
+
+          <Link 
+            href="/admin/configuracoes" 
+            className="flex items-center gap-3 text-stone-300 hover:bg-stone-800 hover:text-white px-4 py-3 rounded-xl font-medium transition-colors"
+          >
+            <Settings className="w-5 h-5" />
+            Configurações GTM
+          </Link>
+
+          <Link 
+            href="/" 
+            className="flex items-center gap-3 text-stone-300 hover:bg-stone-800 hover:text-white px-4 py-3 rounded-xl font-medium transition-colors mt-auto"
+          >
             <Home className="w-5 h-5" />
-            <span className="font-medium">Ver Site</span>
-          </a>
+            Ver Site
+          </Link>
         </nav>
       </aside>
 
@@ -191,7 +215,6 @@ export default function AdminDashboard() {
                   <tr key={item.id} className="border-b border-stone-100 hover:bg-stone-50 transition-colors">
                     <td className="py-4">
                       <div className="w-16 h-16 rounded-lg bg-stone-200 overflow-hidden relative group cursor-pointer">
-                        {/* Como é frontend por enquanto, se a foto não existir, mostra uma caixa cinza */}
                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                           <Edit className="w-5 h-5 text-white" />
                         </div>
