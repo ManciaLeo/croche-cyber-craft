@@ -4,6 +4,9 @@ import { supabase } from "@/lib/supabase";
 import "./globals.css";
 import ChatWidget from "@/app/components/ChatWidget";
 
+// ADICIONE ESTA LINHA AQUI PARA DESATIVAR O CACHE ESTÁTICO DESTA PÁGINA:
+export const dynamic = 'force-dynamic'; 
+
 export const metadata: Metadata = {
   title: "Fran Artes em Crochê",
   description: "Loja oficial de peças artesanais em crochê",
