@@ -73,7 +73,7 @@ export default function Home() {
       
       {/* --- HEADER / NAVEGAÇÃO --- */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/70 backdrop-blur-md border-b border-stone-200/50">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <img 
                 src="/img/logofran.svg" 
