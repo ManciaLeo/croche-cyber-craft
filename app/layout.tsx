@@ -34,6 +34,16 @@ export default async function RootLayout({
   return (
     <html lang="pt-BR">
       <head>
+
+        {/* Google tag (gtag.js) */}
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-J9M01N1C4G"></script>
+  <script dangerouslySetInnerHTML={{ __html: `
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-J9M01N1C4G');
+  `}} />
+
         {/* Se o GTM estiver cadastrado no painel, injeta o script do Google */}
         {gtmId && (
           <Script
