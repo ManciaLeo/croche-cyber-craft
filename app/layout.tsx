@@ -23,7 +23,7 @@ async function getGtmId() {
     return null;
   }
 }
-
+ 
 export default async function RootLayout({
   children,
 }: {
