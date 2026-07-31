@@ -63,8 +63,9 @@ export default function Home() {
   useEffect(() => {
     async function buscarProdutos() {
       const { data, error } = await supabase
-        .from('produtos') // Se sua tabela tiver outro nome, altere aqui!
-        .select('*');
+        .from('produtos')
+        .select('*')
+        .order('created_at', { ascending: false });
       
       if (data) {
         setProdutosReais(data);
@@ -241,43 +242,42 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Se o array estiver vazio (carregando), exibe uma mensagem */}
             {produtosReais.length === 0 && (
               <p className="text-stone-500 col-span-3 text-center py-10">
-                Carregando produtos ou vitrine vazia no momento...
+                Nenhuma peça a pronta entrega no momento.
               </p>
             )}
 
-            {/* Mapeia os dados REAIS vindos do Supabase */}
+            {/* Mapeia os produtos reais cadastrados no Supabase com a foto real */}
             {produtosReais.map((item, idx) => (
-              <div key={idx} className="bg-white rounded-2xl p-6 border border-[#B76E79]/20 shadow-sm hover:shadow-md transition-shadow relative">
+              <div key={idx} className="bg-white rounded-2xl p-6 border border-[#B76E79]/20 shadow-sm hover:shadow-md transition-shadow relative flex flex-col">
                 <span className="absolute top-4 right-4 bg-green-100 text-green-700 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md z-10">
-                  {/* Usa a tag do banco, se não tiver, coloca um texto padrão */}
-                  {item.tag || 'Disponível'}
+                  Envio Imediato
                 </span>
                 
-                <div className="w-full h-48 bg-stone-100 rounded-xl mb-6 flex items-center justify-center border border-stone-200/50 overflow-hidden">
-                  {/* Se você tiver o link da imagem no banco depois, só trocar aqui */}
-                  <span className="text-stone-400 text-sm italic">Foto da peça aqui</span>
+                {/* Exibição da Imagem Real enviada pelo Admin */}
+                <div className="w-full h-48 bg-stone-100 rounded-xl mb-6 flex items-center justify-center border border-stone-200/50 overflow-hidden relative">
+                  {item.imagem_url ? (
+                    <img 
+                      src={item.imagem_url} 
+                      alt={item.nome || 'Peça em crochê'} 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-stone-400 text-sm italic">Sem foto</span>
+                  )}
                 </div>
 
-                {/* ATENÇÃO: Dependendo de como você nomeou as colunas lá no Supabase, 
-                    mude item.nome para item.title, item.preco para item.price, etc. */}
-                <h3 className="text-xl font-bold text-stone-800">
-                  {item.nome || item.title || item.nome_peca}
-                </h3>
-                <div className="flex justify-between items-center mt-2">
-                  <span className="text-lg font-semibold text-[#B76E79]">
-                    {/* Valida se o preço existe no banco */}
-                    {item.preco || item.price || 'Preço sob consulta'}
-                  </span>
-                  <span className="text-xs text-stone-400 bg-stone-100 px-2 py-1 rounded">
-                    {item.status || 'Em Estoque'}
-                  </span>
+                <h3 className="text-xl font-bold text-stone-800">{item.nome}</h3>
+                <p className="text-stone-500 text-sm mt-1 flex-grow">{item.descricao}</p>
+                
+                <div className="flex justify-between items-center mt-4 pt-4 border-t border-stone-100">
+                  <span className="text-lg font-semibold text-[#B76E79]">R$ {item.preco}</span>
+                  <span className="text-xs text-stone-500 bg-stone-100 px-2.5 py-1 rounded-full">Em estoque</span>
                 </div>
 
                 <a 
-                  href={`https://wa.me/5551989736603?text=Olá!%20Tenho%20interesse%20na%20peça%20a%20pronta%20entrega:%20${encodeURIComponent(item.nome || item.title || 'Produto')}`}
+                  href={`https://wa.me/5551989736603?text=Olá!%20Tenho%20interesse%20na%20peça%20a%20pronta%20entrega:%20${encodeURIComponent(item.nome)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-6 w-full flex items-center justify-center gap-2 py-3 rounded-xl font-medium text-white bg-[#B76E79] hover:bg-[#a05a66] transition-all shadow-md hover:shadow-[#B76E79]/40"
