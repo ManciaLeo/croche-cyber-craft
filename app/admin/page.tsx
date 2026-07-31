@@ -77,6 +77,38 @@ export default function AdminPage() {
     }
   };
 
+  // Função para excluir o produto
+  const handleDeleteProduct = async (id: string, imagemUrl: string) => {
+    if (!confirm("Tem certeza de que deseja excluir esta peça?")) return;
+
+    // Se houver uma imagem associada, tenta remover ela do storage do Supabase
+    if (imagemUrl) {
+      try {
+        // Extrai o nome do arquivo da URL pública
+        const partesUrl = imagemUrl.split('/');
+        const nomeArquivo = partesUrl[partesUrl.length - 1];
+        
+        await supabase.storage
+          .from('produtos')
+          .remove([nomeArquivo]);
+      } catch (err) {
+        console.error("Erro ao remover imagem do storage:", err);
+      }
+    }
+
+    // Deleta o registro da tabela produtos
+    const { error } = await supabase
+      .from("produtos")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      alert("Erro ao excluir produto: " + error.message);
+    } else {
+      fetchProdutos();
+    }
+  };
+
   return (
     <div className="p-8 max-w-5xl mx-auto min-h-screen bg-stone-900 text-white">
       <div className="flex justify-between items-center mb-8">
@@ -100,6 +132,7 @@ export default function AdminPage() {
                 <th className="p-4 font-semibold text-stone-200">Nome da Peça</th>
                 <th className="p-4 font-semibold text-stone-200">Preço</th>
                 <th className="p-4 font-semibold text-stone-200">Status</th>
+                <th className="p-4 font-semibold text-stone-200 text-right">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -118,6 +151,14 @@ export default function AdminPage() {
                     <span className="bg-green-900 text-green-100 text-xs px-2.5 py-1 rounded-full border border-green-700">
                       Em estoque
                     </span>
+                  </td>
+                  <td className="p-4 text-right">
+                    <button
+                      onClick={() => handleDeleteProduct(produto.id, produto.imagem_url)}
+                      className="bg-red-600/20 hover:bg-red-600 text-red-200 hover:text-white px-3 py-1.5 rounded-md text-xs font-medium transition-colors border border-red-500/30"
+                    >
+                      Excluir
+                    </button>
                   </td>
                 </tr>
               ))}
