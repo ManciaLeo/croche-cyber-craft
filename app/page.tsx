@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { createClient } from '@supabase/supabase-js';
 import { 
   Sparkles, 
   ShoppingBag, 
@@ -16,6 +17,11 @@ import {
   Menu
 } from 'lucide-react';
 
+// Conexão com o Supabase usando as chaves do .env.local
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
 const PALETTES = [
   { name: 'Clássico Crudo', primary: '#E5D3B3', secondary: '#8B5A2B' },
   { name: 'Romance Nude', primary: '#EED9D9', secondary: '#9D6B6B' },
@@ -25,12 +31,6 @@ const PALETTES = [
   { name: 'Lavanda & Uva', primary: '#E9D8FD', secondary: '#6B46C1' },
   { name: 'Ouro & Girassol', primary: '#F6E05E', secondary: '#975A16' },
   { name: 'Jardim Colorido', primary: '#ED64A6', secondary: '#38B2AC' },
-];
-
-const PRONTA_ENTREGA = [
-  { title: 'Tapete Oval Rosé', price: 'R$ 120,00', status: 'Única Peça', tag: 'Envio Imediato' },
-  { title: 'Trilho de Mesa Dourado', price: 'R$ 180,00', status: 'Pronto para envio', tag: 'Envio Imediato' },
-  { title: 'Kit Sousplat Cru (4 unid.)', price: 'R$ 150,00', status: 'Último kit', tag: 'Envio Imediato' },
 ];
 
 const PRODUCTS = [
@@ -55,6 +55,25 @@ export default function Home() {
   const [selectedPalette, setSelectedPalette] = useState(PALETTES[0]);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
+  
+  // Estado para armazenar os produtos vindos do banco de dados
+  const [produtosReais, setProdutosReais] = useState<any[]>([]);
+
+  // Buscar produtos no Supabase quando a página carregar
+  useEffect(() => {
+    async function buscarProdutos() {
+      const { data, error } = await supabase
+        .from('produtos') // Se sua tabela tiver outro nome, altere aqui!
+        .select('*');
+      
+      if (data) {
+        setProdutosReais(data);
+      } else if (error) {
+        console.error('Erro ao buscar produtos:', error);
+      }
+    }
+    buscarProdutos();
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -222,24 +241,43 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {PRONTA_ENTREGA.map((item, idx) => (
+            {/* Se o array estiver vazio (carregando), exibe uma mensagem */}
+            {produtosReais.length === 0 && (
+              <p className="text-stone-500 col-span-3 text-center py-10">
+                Carregando produtos ou vitrine vazia no momento...
+              </p>
+            )}
+
+            {/* Mapeia os dados REAIS vindos do Supabase */}
+            {produtosReais.map((item, idx) => (
               <div key={idx} className="bg-white rounded-2xl p-6 border border-[#B76E79]/20 shadow-sm hover:shadow-md transition-shadow relative">
                 <span className="absolute top-4 right-4 bg-green-100 text-green-700 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md z-10">
-                  {item.tag}
+                  {/* Usa a tag do banco, se não tiver, coloca um texto padrão */}
+                  {item.tag || 'Disponível'}
                 </span>
                 
                 <div className="w-full h-48 bg-stone-100 rounded-xl mb-6 flex items-center justify-center border border-stone-200/50 overflow-hidden">
+                  {/* Se você tiver o link da imagem no banco depois, só trocar aqui */}
                   <span className="text-stone-400 text-sm italic">Foto da peça aqui</span>
                 </div>
 
-                <h3 className="text-xl font-bold text-stone-800">{item.title}</h3>
+                {/* ATENÇÃO: Dependendo de como você nomeou as colunas lá no Supabase, 
+                    mude item.nome para item.title, item.preco para item.price, etc. */}
+                <h3 className="text-xl font-bold text-stone-800">
+                  {item.nome || item.title || item.nome_peca}
+                </h3>
                 <div className="flex justify-between items-center mt-2">
-                  <span className="text-lg font-semibold text-[#B76E79]">{item.price}</span>
-                  <span className="text-xs text-stone-400 bg-stone-100 px-2 py-1 rounded">{item.status}</span>
+                  <span className="text-lg font-semibold text-[#B76E79]">
+                    {/* Valida se o preço existe no banco */}
+                    {item.preco || item.price || 'Preço sob consulta'}
+                  </span>
+                  <span className="text-xs text-stone-400 bg-stone-100 px-2 py-1 rounded">
+                    {item.status || 'Em Estoque'}
+                  </span>
                 </div>
 
                 <a 
-                  href={`https://wa.me/5551989736603?text=Olá!%20Tenho%20interesse%20na%20peça%20a%20pronta%20entrega:%20${encodeURIComponent(item.title)}`}
+                  href={`https://wa.me/5551989736603?text=Olá!%20Tenho%20interesse%20na%20peça%20a%20pronta%20entrega:%20${encodeURIComponent(item.nome || item.title || 'Produto')}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-6 w-full flex items-center justify-center gap-2 py-3 rounded-xl font-medium text-white bg-[#B76E79] hover:bg-[#a05a66] transition-all shadow-md hover:shadow-[#B76E79]/40"
@@ -407,7 +445,6 @@ export default function Home() {
           </div>
           
           <div className="flex items-center gap-4">
-            {/* O Link do instagram dela permanece o mesmo, a não ser que ela tenha mudado o @ */}
             <a 
               href="https://www.instagram.com/crochedafran.oficial/" 
               target="_blank" 
