@@ -14,7 +14,9 @@ import {
   ChevronDown,
   Tag,
   Zap,
-  Menu
+  Menu,
+  X,
+  ZoomIn
 } from 'lucide-react';
 
 // Conexão com o Supabase usando as chaves do .env.local
@@ -41,7 +43,7 @@ const PRODUCTS = [
 ];
 
 const FAQS = [
-  { q: 'Como faço para fazer um pedido sob medida?', a: 'Você pode escolher um modelo aqui no site ou enviar uma referência diretamente no WhatsApp da Fran. Definimos juntos as cores, medidas e prazo.' },
+  { q: 'Como faço para fazer um pedido sob medida?', a: 'Você pode escolher um modelo aqui no site ou enviar uma referência diretamente no WhatsApp da Crochê da Fran. Definimos juntos as cores, medidas e prazo.' },
   { q: 'Qual é o prazo de entrega?', a: 'Como as peças são 100% produzidas à mão, o prazo varia de acordo com a complexidade do modelo e a fila de encomendas. O prazo exato é informado no orçamento.' },
   { q: 'Vocês enviam para todo o Brasil?', a: 'Sim! Enviamos para todos os estados via Correios (PAC ou Sedex) com código de rastreio.' },
 ];
@@ -58,6 +60,9 @@ export default function Home() {
   
   // Estado para armazenar os produtos vindos do banco de dados
   const [produtosReais, setProdutosReais] = useState<any[]>([]);
+
+  // Estado para controlar o modal de zoom da foto
+  const [fotoSelecionada, setFotoSelecionada] = useState<string | null>(null);
 
   // Buscar produtos no Supabase quando a página carregar
   useEffect(() => {
@@ -84,7 +89,7 @@ export default function Home() {
   }, []);
 
   const whatsappMsg = encodeURIComponent(
-    `Olá Fran! Estive no seu site e adorei a combinação de cores "${selectedPalette.name}" para um jogo de crochê. Como posso encomendar?`
+    `Olá Fran! Estive no site da Crochê da Fran e adorei a combinação de cores "${selectedPalette.name}" para um jogo de crochê. Como posso encomendar?`
   );
   const whatsappUrl = `https://wa.me/5551989736603?text=${whatsappMsg}`;
 
@@ -97,7 +102,7 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <img 
                 src="/img/logofran.svg" 
-                alt="Logo Fran Artes em Crochê" 
+                alt="Logo Crochê da Fran" 
                 className="h-12 w-auto" 
               />
           </div>
@@ -133,7 +138,7 @@ export default function Home() {
             <motion.img 
               key={currentSlide}
               src={BANNER_IMAGES[currentSlide]}
-              alt="Fran Artes em Crochê" 
+              alt="Crochê da Fran" 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -176,7 +181,7 @@ export default function Home() {
             </motion.h1>
 
             <p className="mt-6 text-stone-600 text-lg md:text-xl font-light max-w-lg leading-relaxed">
-              Transforme seus ambientes com a textura do aconchego e a precisão do design moderno. Peças sob medida direto da Fran para sua casa.
+              Transforme seus ambientes com a textura do aconchego e a precisão do design moderno. Peças sob medida direto da Crochê da Fran para sua casa.
             </p>
 
             <div className="mt-10 flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
@@ -248,21 +253,31 @@ export default function Home() {
               </p>
             )}
 
-            {/* Mapeia os produtos reais cadastrados no Supabase com a foto real */}
+            {/* Mapeia os produtos reais com suporte a clique e zoom na foto */}
             {produtosReais.map((item, idx) => (
               <div key={idx} className="bg-white rounded-2xl p-6 border border-[#B76E79]/20 shadow-sm hover:shadow-md transition-shadow relative flex flex-col">
                 <span className="absolute top-4 right-4 bg-green-100 text-green-700 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md z-10">
                   Envio Imediato
                 </span>
                 
-                {/* Exibição da Imagem Real enviada pelo Admin */}
-                <div className="w-full h-48 bg-stone-100 rounded-xl mb-6 flex items-center justify-center border border-stone-200/50 overflow-hidden relative">
+                {/* Imagem com enquadramento perfeito (object-cover) e botão de zoom ao passar o mouse / clicar */}
+                <div 
+                  onClick={() => item.imagem_url && setFotoSelecionada(item.imagem_url)}
+                  className="w-full h-56 bg-stone-100 rounded-xl mb-6 flex items-center justify-center border border-stone-200/50 overflow-hidden relative group cursor-pointer"
+                  title="Clique para ver a foto ampliada"
+                >
                   {item.imagem_url ? (
-                    <img 
-                      src={item.imagem_url} 
-                      alt={item.nome || 'Peça em crochê'} 
-                      className="w-full h-full object-cover"
-                    />
+                    <>
+                      <img 
+                        src={item.imagem_url} 
+                        alt={item.nome || 'Peça em crochê'} 
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white font-medium text-xs">
+                        <ZoomIn className="w-5 h-5" />
+                        <span>Ampliar foto</span>
+                      </div>
+                    </>
                   ) : (
                     <span className="text-stone-400 text-sm italic">Sem foto</span>
                   )}
@@ -290,6 +305,35 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* --- MODAL / ZOOM DA FOTO EM TELA INTEIRA --- */}
+      <AnimatePresence>
+        {fotoSelecionada && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setFotoSelecionada(null)}
+            className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm cursor-zoom-out"
+          >
+            <button 
+              onClick={() => setFotoSelecionada(null)}
+              className="absolute top-6 right-6 text-white bg-white/10 hover:bg-white/20 p-3 rounded-full transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <motion.img 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              src={fotoSelecionada} 
+              alt="Foto ampliada da peça" 
+              className="max-w-full max-h-[90vh] object-contain rounded-xl shadow-2xl"
+              onClick={(e) => e.stopPropagation()} 
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 4. SIMULADOR INTERATIVO */}
       <section id="simulador" className="py-24 px-6 relative">
