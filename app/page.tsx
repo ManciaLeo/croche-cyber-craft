@@ -324,7 +324,7 @@ export default function Home() {
                   >
                     <Sparkles className="w-5 h-5 text-white mb-1 animate-pulse" />
                     <span className="text-[9px] font-mono uppercase tracking-wider text-white/90">
-                      Fran Artes em Crochê
+                      Crochê da Fran
                     </span>
                   </div>
                 </div>
@@ -440,7 +440,7 @@ export default function Home() {
       <footer className="py-12 border-t border-stone-200 text-center text-xs text-stone-500 bg-white">
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="text-left">
-            <p className="font-bold text-stone-800 text-sm">Fran Artes em Crochê</p>
+            <p className="font-bold text-stone-800 text-sm">Crochê da Fran</p>
             <p className="mt-1">Arte manual com design contemporâneo.</p>
           </div>
           
