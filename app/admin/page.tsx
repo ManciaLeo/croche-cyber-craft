@@ -8,11 +8,13 @@ export default function AdminPage() {
   const [produtos, setProdutos] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Estados do formulário
+  // Estados do formulário e controle de edição
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [nome, setNome] = useState("");
   const [descricao, setDescricao] = useState("");
   const [preco, setPreco] = useState("");
   const [imagemFile, setImagemFile] = useState<File | null>(null);
+  const [imagemAtualUrl, setImagemAtualUrl] = useState("");
 
   const fetchProdutos = async () => {
     const { data } = await supabase
@@ -27,13 +29,35 @@ export default function AdminPage() {
     fetchProdutos();
   }, []);
 
-  const handleAddProduct = async (e: React.FormEvent) => {
+  // Abre o modal para criar um novo produto
+  const handleOpenNewModal = () => {
+    setEditingId(null);
+    setNome("");
+    setDescricao("");
+    setPreco("");
+    setImagemFile(null);
+    setImagemAtualUrl("");
+    setIsModalOpen(true);
+  };
+
+  // Abre o modal já preenchido para editar um produto existente
+  const handleOpenEditModal = (produto: any) => {
+    setEditingId(produto.id);
+    setNome(produto.nome || "");
+    setDescricao(produto.descricao || "");
+    setPreco(produto.preco ? produto.preco.toString() : "");
+    setImagemAtualUrl(produto.imagem_url || "");
+    setImagemFile(null);
+    setIsModalOpen(true);
+  };
+
+  const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    let urlDaImagem = "";
+    let urlDaImagem = imagemAtualUrl;
 
-    // 1. Faz o upload da imagem se o usuário tiver selecionado uma
+    // 1. Se o usuário selecionou uma nova imagem, faz o upload dela
     if (imagemFile) {
       const fileExt = imagemFile.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
@@ -48,7 +72,6 @@ export default function AdminPage() {
         return;
       }
 
-      // 2. Pega o link público da imagem
       const { data } = supabase.storage
         .from('produtos')
         .getPublicUrl(fileName);
@@ -56,35 +79,54 @@ export default function AdminPage() {
       urlDaImagem = data.publicUrl;
     }
 
-    // 3. Salva o produto no banco de dados com a URL da foto
-    const { error } = await supabase.from("produtos").insert([
-      {
-        nome,
-        descricao,
-        preco: parseFloat(preco.replace(",", ".")), 
-        imagem_url: urlDaImagem,
-      },
-    ]);
+    const precoFormatado = parseFloat(preco.replace(",", "."));
+
+    if (editingId) {
+      // ATUALIZAR PRODUTO EXISTENTE
+      const { error } = await supabase
+        .from("produtos")
+        .update({
+          nome,
+          descricao,
+          preco: precoFormatado,
+          imagem_url: urlDaImagem,
+        })
+        .eq("id", editingId);
+
+      if (error) {
+        alert("Erro ao atualizar produto: " + error.message);
+      } else {
+        setIsModalOpen(false);
+        fetchProdutos();
+      }
+    } else {
+      // CRIAR NOVO PRODUTO
+      const { error } = await supabase.from("produtos").insert([
+        {
+          nome,
+          descricao,
+          preco: precoFormatado,
+          imagem_url: urlDaImagem,
+        },
+      ]);
+
+      if (error) {
+        alert("Erro ao salvar produto: " + error.message);
+      } else {
+        setIsModalOpen(false);
+        fetchProdutos();
+      }
+    }
 
     setLoading(false);
-
-    if (error) {
-      alert("Erro ao salvar produto: " + error.message);
-    } else {
-      setIsModalOpen(false); 
-      setNome(""); setDescricao(""); setPreco(""); setImagemFile(null); 
-      fetchProdutos(); 
-    }
   };
 
   // Função para excluir o produto
   const handleDeleteProduct = async (id: string, imagemUrl: string) => {
     if (!confirm("Tem certeza de que deseja excluir esta peça?")) return;
 
-    // Se houver uma imagem associada, tenta remover ela do storage do Supabase
     if (imagemUrl) {
       try {
-        // Extrai o nome do arquivo da URL pública
         const partesUrl = imagemUrl.split('/');
         const nomeArquivo = partesUrl[partesUrl.length - 1];
         
@@ -96,7 +138,6 @@ export default function AdminPage() {
       }
     }
 
-    // Deleta o registro da tabela produtos
     const { error } = await supabase
       .from("produtos")
       .delete()
@@ -112,9 +153,9 @@ export default function AdminPage() {
   return (
     <div className="p-8 max-w-5xl mx-auto min-h-screen bg-stone-900 text-white">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold">Painel Administrativo - Produtos</h1>
+        <h1 className="text-2xl font-bold">Painel Administrativo - Crochê da Fran</h1>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={handleOpenNewModal}
           className="bg-stone-200 hover:bg-white text-stone-900 px-4 py-2 rounded-md font-medium transition-colors"
         >
           + Adicionar Produto
@@ -152,7 +193,13 @@ export default function AdminPage() {
                       Em estoque
                     </span>
                   </td>
-                  <td className="p-4 text-right">
+                  <td className="p-4 text-right space-x-2">
+                    <button
+                      onClick={() => handleOpenEditModal(produto)}
+                      className="bg-blue-600/20 hover:bg-blue-600 text-blue-200 hover:text-white px-3 py-1.5 rounded-md text-xs font-medium transition-colors border border-blue-500/30"
+                    >
+                      Editar
+                    </button>
                     <button
                       onClick={() => handleDeleteProduct(produto.id, produto.imagem_url)}
                       className="bg-red-600/20 hover:bg-red-600 text-red-200 hover:text-white px-3 py-1.5 rounded-md text-xs font-medium transition-colors border border-red-500/30"
@@ -171,7 +218,7 @@ export default function AdminPage() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 text-stone-900">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Nova Peça</h2>
+              <h2 className="text-xl font-bold">{editingId ? "Editar Peça" : "Nova Peça"}</h2>
               <button 
                 onClick={() => setIsModalOpen(false)}
                 className="text-stone-500 hover:text-stone-800 font-bold text-xl"
@@ -180,7 +227,7 @@ export default function AdminPage() {
               </button>
             </div>
 
-            <form onSubmit={handleAddProduct} className="space-y-4">
+            <form onSubmit={handleSaveProduct} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-1">Nome da peça</label>
                 <input
@@ -208,6 +255,12 @@ export default function AdminPage() {
 
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-1">Foto da Peça</label>
+                {imagemAtualUrl && !imagemFile && (
+                  <div className="mb-2 flex items-center gap-2 text-xs text-stone-500">
+                    <img src={imagemAtualUrl} alt="Atual" className="w-8 h-8 object-cover rounded" />
+                    <span>Usando foto atual (selecione outra abaixo se quiser alterar)</span>
+                  </div>
+                )}
                 <input
                   type="file"
                   accept="image/*"
@@ -244,7 +297,7 @@ export default function AdminPage() {
                   disabled={loading}
                   className="px-4 py-2 bg-stone-900 text-white rounded-md font-medium hover:bg-stone-800 disabled:opacity-50"
                 >
-                  {loading ? "Salvando..." : "Salvar Produto"}
+                  {loading ? "Salvando..." : editingId ? "Salvar Alterações" : "Salvar Produto"}
                 </button>
               </div>
             </form>
