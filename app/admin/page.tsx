@@ -29,7 +29,6 @@ export default function AdminPage() {
     fetchProdutos();
   }, []);
 
-  // Abre o modal para criar um novo produto
   const handleOpenNewModal = () => {
     setEditingId(null);
     setNome("");
@@ -40,7 +39,6 @@ export default function AdminPage() {
     setIsModalOpen(true);
   };
 
-  // Abre o modal já preenchido para editar um produto existente
   const handleOpenEditModal = (produto: any) => {
     setEditingId(produto.id);
     setNome(produto.nome || "");
@@ -57,7 +55,6 @@ export default function AdminPage() {
 
     let urlDaImagem = imagemAtualUrl;
 
-    // 1. Se o usuário selecionou uma nova imagem, faz o upload dela
     if (imagemFile) {
       const fileExt = imagemFile.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
@@ -82,7 +79,6 @@ export default function AdminPage() {
     const precoFormatado = parseFloat(preco.replace(",", "."));
 
     if (editingId) {
-      // ATUALIZAR PRODUTO EXISTENTE
       const { error } = await supabase
         .from("produtos")
         .update({
@@ -100,7 +96,6 @@ export default function AdminPage() {
         fetchProdutos();
       }
     } else {
-      // CRIAR NOVO PRODUTO
       const { error } = await supabase.from("produtos").insert([
         {
           nome,
@@ -121,7 +116,6 @@ export default function AdminPage() {
     setLoading(false);
   };
 
-  // Função para excluir o produto
   const handleDeleteProduct = async (id: string, imagemUrl: string) => {
     if (!confirm("Tem certeza de que deseja excluir esta peça?")) return;
 
@@ -150,59 +144,91 @@ export default function AdminPage() {
     }
   };
 
+  // Função para compartilhar o produto direto no Instagram/Redes Sociais
+  const handleShareProduct = async (produto: any) => {
+    const textoCompartilhamento = `✨ Peça disponível na Crochê da Fran!\n\n🧵 ${produto.nome}\n💰 R$ ${produto.preco}\n${produto.descricao ? `📝 ${produto.descricao}\n\n` : ''}📦 Envio para todo o Brasil! Fale conosco pelo site.`;
+
+    // Se o navegador suportar compartilhamento nativo (excelente para celulares)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: produto.nome,
+          text: textoCompartilhamento,
+          url: window.location.origin, // Link do site
+        });
+      } catch (err) {
+        console.log("Compartilhamento cancelado ou não suportado", err);
+      }
+    } else {
+      // Se for no computador, copia o texto automaticamente para ela colar no Instagram Web / Facebook
+      navigator.clipboard.writeText(textoCompartilhamento);
+      alert("Legenda copiada para a área de transferência! Cole direto no Instagram ou Facebook. A foto pode ser salva clicando com o botão direito nela.");
+    }
+  };
+
   return (
-    <div className="p-8 max-w-5xl mx-auto min-h-screen bg-stone-900 text-white">
+    <div className="p-8 max-w-6xl mx-auto min-h-screen bg-stone-900 text-white font-sans">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold">Painel Administrativo - Crochê da Fran</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Painel Administrativo</h1>
+          <p className="text-sm text-stone-400">Crochê da Fran - Gestão de Vitrine</p>
+        </div>
         <button
           onClick={handleOpenNewModal}
-          className="bg-stone-200 hover:bg-white text-stone-900 px-4 py-2 rounded-md font-medium transition-colors"
+          className="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-md"
         >
           + Adicionar Produto
         </button>
       </div>
 
-      <div className="bg-stone-800 rounded-lg shadow-sm border border-stone-700 overflow-hidden">
+      <div className="bg-stone-800 rounded-xl shadow-lg border border-stone-700 overflow-hidden">
         {produtos.length === 0 ? (
-          <p className="p-6 text-stone-300 text-center">Nenhum produto cadastrado ainda.</p>
+          <p className="p-8 text-stone-400 text-center">Nenhum produto cadastrado na pronta entrega ainda.</p>
         ) : (
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-stone-900 border-b border-stone-700">
-                <th className="p-4 font-semibold text-stone-200">Foto</th>
-                <th className="p-4 font-semibold text-stone-200">Nome da Peça</th>
-                <th className="p-4 font-semibold text-stone-200">Preço</th>
-                <th className="p-4 font-semibold text-stone-200">Status</th>
-                <th className="p-4 font-semibold text-stone-200 text-right">Ações</th>
+              <tr className="bg-stone-900 border-b border-stone-700 text-stone-400 text-xs uppercase tracking-wider">
+                <th className="p-4">Foto</th>
+                <th className="p-4">Nome da Peça</th>
+                <th className="p-4">Preço</th>
+                <th className="p-4">Status</th>
+                <th className="p-4 text-right">Ações de Gestão</th>
               </tr>
             </thead>
             <tbody>
               {produtos.map((produto) => (
-                <tr key={produto.id} className="border-b border-stone-700 hover:bg-stone-700/50">
+                <tr key={produto.id} className="border-b border-stone-700/60 hover:bg-stone-700/30 transition-colors">
                   <td className="p-4">
                     {produto.imagem_url ? (
-                      <img src={produto.imagem_url} alt={produto.nome} className="w-12 h-12 object-cover rounded-md" />
+                      <img src={produto.imagem_url} alt={produto.nome} className="w-12 h-12 object-cover rounded-lg border border-stone-600" />
                     ) : (
-                      <span className="text-xs text-stone-500">Sem foto</span>
+                      <span className="text-xs text-stone-500 italic">Sem foto</span>
                     )}
                   </td>
                   <td className="p-4 text-white font-medium">{produto.nome}</td>
-                  <td className="p-4 text-stone-300">R$ {produto.preco}</td>
+                  <td className="p-4 text-amber-400 font-semibold">R$ {produto.preco}</td>
                   <td className="p-4">
-                    <span className="bg-green-900 text-green-100 text-xs px-2.5 py-1 rounded-full border border-green-700">
-                      Em estoque
+                    <span className="bg-green-900/60 text-green-300 text-xs px-2.5 py-1 rounded-full border border-green-700/50 font-medium">
+                      Pronta Entrega
                     </span>
                   </td>
                   <td className="p-4 text-right space-x-2">
                     <button
+                      onClick={() => handleShareProduct(produto)}
+                      className="bg-pink-600/20 hover:bg-pink-600 text-pink-200 hover:text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border border-pink-500/30 shadow-sm"
+                      title="Compartilhar nos Stories / Redes Sociais"
+                    >
+                      📲 Divulgar
+                    </button>
+                    <button
                       onClick={() => handleOpenEditModal(produto)}
-                      className="bg-blue-600/20 hover:bg-blue-600 text-blue-200 hover:text-white px-3 py-1.5 rounded-md text-xs font-medium transition-colors border border-blue-500/30"
+                      className="bg-blue-600/20 hover:bg-blue-600 text-blue-200 hover:text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border border-blue-500/30 shadow-sm"
                     >
                       Editar
                     </button>
                     <button
                       onClick={() => handleDeleteProduct(produto.id, produto.imagem_url)}
-                      className="bg-red-600/20 hover:bg-red-600 text-red-200 hover:text-white px-3 py-1.5 rounded-md text-xs font-medium transition-colors border border-red-500/30"
+                      className="bg-red-600/20 hover:bg-red-600 text-red-200 hover:text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border border-red-500/30 shadow-sm"
                     >
                       Excluir
                     </button>
@@ -215,13 +241,13 @@ export default function AdminPage() {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 text-stone-900">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">{editingId ? "Editar Peça" : "Nova Peça"}</h2>
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-stone-900">
+            <div className="flex justify-between items-center mb-4 border-b border-stone-100 pb-3">
+              <h2 className="text-xl font-bold text-stone-800">{editingId ? "Editar Peça" : "Nova Peça"}</h2>
               <button 
                 onClick={() => setIsModalOpen(false)}
-                className="text-stone-500 hover:text-stone-800 font-bold text-xl"
+                className="text-stone-400 hover:text-stone-700 font-bold text-2xl leading-none"
               >
                 &times;
               </button>
@@ -235,7 +261,7 @@ export default function AdminPage() {
                   type="text"
                   value={nome}
                   onChange={(e) => setNome(e.target.value)}
-                  className="w-full border border-stone-300 rounded-md p-2 focus:ring-2 focus:ring-stone-500 outline-none text-black bg-white"
+                  className="w-full border border-stone-300 rounded-lg p-2.5 focus:ring-2 focus:ring-amber-500 outline-none text-black bg-stone-50"
                   placeholder="Ex: Jogo de Banheiro Crudo"
                 />
               </div>
@@ -248,7 +274,7 @@ export default function AdminPage() {
                   step="0.01"
                   value={preco}
                   onChange={(e) => setPreco(e.target.value)}
-                  className="w-full border border-stone-300 rounded-md p-2 focus:ring-2 focus:ring-stone-500 outline-none text-black bg-white"
+                  className="w-full border border-stone-300 rounded-lg p-2.5 focus:ring-2 focus:ring-amber-500 outline-none text-black bg-stone-50"
                   placeholder="Ex: 150.00"
                 />
               </div>
@@ -256,9 +282,9 @@ export default function AdminPage() {
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-1">Foto da Peça</label>
                 {imagemAtualUrl && !imagemFile && (
-                  <div className="mb-2 flex items-center gap-2 text-xs text-stone-500">
-                    <img src={imagemAtualUrl} alt="Atual" className="w-8 h-8 object-cover rounded" />
-                    <span>Usando foto atual (selecione outra abaixo se quiser alterar)</span>
+                  <div className="mb-2 flex items-center gap-2 text-xs text-stone-500 bg-stone-50 p-2 rounded-lg border border-stone-200">
+                    <img src={imagemAtualUrl} alt="Atual" className="w-10 h-10 object-cover rounded" />
+                    <span>Usando foto atual cadastrada</span>
                   </div>
                 )}
                 <input
@@ -269,7 +295,7 @@ export default function AdminPage() {
                       setImagemFile(e.target.files[0]);
                     }
                   }}
-                  className="w-full border border-stone-300 rounded-md p-2 text-stone-700 bg-white file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-stone-100 file:text-stone-700 hover:file:bg-stone-200 cursor-pointer"
+                  className="w-full border border-stone-300 rounded-lg p-2 text-stone-700 bg-stone-50 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-amber-100 file:text-amber-800 hover:file:bg-amber-200 cursor-pointer"
                 />
               </div>
 
@@ -279,23 +305,23 @@ export default function AdminPage() {
                   rows={3}
                   value={descricao}
                   onChange={(e) => setDescricao(e.target.value)}
-                  className="w-full border border-stone-300 rounded-md p-2 focus:ring-2 focus:ring-stone-500 outline-none text-black bg-white"
+                  className="w-full border border-stone-300 rounded-lg p-2.5 focus:ring-2 focus:ring-amber-500 outline-none text-black bg-stone-50"
                   placeholder="Detalhes sobre a linha, tamanho..."
                 />
               </div>
 
-              <div className="pt-2 flex justify-end gap-2">
+              <div className="pt-3 flex justify-end gap-3 border-t border-stone-100">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-stone-600 hover:bg-stone-100 rounded-md font-medium"
+                  className="px-4 py-2.5 text-stone-600 hover:bg-stone-100 rounded-lg font-medium transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-4 py-2 bg-stone-900 text-white rounded-md font-medium hover:bg-stone-800 disabled:opacity-50"
+                  className="px-5 py-2.5 bg-stone-900 text-white rounded-lg font-medium hover:bg-stone-800 disabled:opacity-50 transition-colors shadow-md"
                 >
                   {loading ? "Salvando..." : editingId ? "Salvar Alterações" : "Salvar Produto"}
                 </button>
