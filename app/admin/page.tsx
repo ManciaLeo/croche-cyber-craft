@@ -16,6 +16,10 @@ export default function AdminPage() {
   const [imagemFile, setImagemFile] = useState<File | null>(null);
   const [imagemAtualUrl, setImagemAtualUrl] = useState("");
 
+  // Estado para o modal de Divulgação (Desktop / Celular)
+  const [produtoParaDivulgar, setProdutoParaDivulgar] = useState<any | null>(null);
+  const [copiado, setCopiado] = useState(false);
+
   const fetchProdutos = async () => {
     const { data } = await supabase
       .from("produtos")
@@ -144,26 +148,30 @@ export default function AdminPage() {
     }
   };
 
-  // Função para compartilhar o produto direto no Instagram/Redes Sociais
-  const handleShareProduct = async (produto: any) => {
-    const textoCompartilhamento = `✨ Peça disponível na Crochê da Fran!\n\n🧵 ${produto.nome}\n💰 R$ ${produto.preco}\n${produto.descricao ? `📝 ${produto.descricao}\n\n` : ''}📦 Envio para todo o Brasil! Fale conosco pelo site.`;
+  // Texto formatado para divulgação
+  const gerarTextoDivulgacao = (produto: any) => {
+    return `✨ Peça disponível na Crochê da Fran!\n\n🧵 ${produto.nome}\n💰 R$ ${produto.preco}\n${produto.descricao ? `📝 ${produto.descricao}\n\n` : ''}📦 Envio para todo o Brasil! Fale conosco pelo site.`;
+  };
 
-    // Se o navegador suportar compartilhamento nativo (excelente para celulares)
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: produto.nome,
-          text: textoCompartilhamento,
-          url: window.location.origin, // Link do site
-        });
-      } catch (err) {
-        console.log("Compartilhamento cancelado ou não suportado", err);
-      }
+  const handleDivulgarClick = (produto: any) => {
+    // Se for celular, tenta usar o compartilhamento nativo do aparelho
+    if (navigator.share && window.innerWidth < 768) {
+      navigator.share({
+        title: produto.nome,
+        text: gerarTextoDivulgacao(produto),
+        url: window.location.origin,
+      }).catch(() => {});
     } else {
-      // Se for no computador, copia o texto automaticamente para ela colar no Instagram Web / Facebook
-      navigator.clipboard.writeText(textoCompartilhamento);
-      alert("Legenda copiada para a área de transferência! Cole direto no Instagram ou Facebook. A foto pode ser salva clicando com o botão direito nela.");
+      // Se for desktop, abre um painel facilitador na tela com a legenda e botão de baixar foto
+      setProdutoParaDivulgar(produto);
+      setCopiado(false);
     }
+  };
+
+  const copiarLegenda = (produto: any) => {
+    navigator.clipboard.writeText(gerarTextoDivulgacao(produto));
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 3000);
   };
 
   return (
@@ -214,9 +222,9 @@ export default function AdminPage() {
                   </td>
                   <td className="p-4 text-right space-x-2">
                     <button
-                      onClick={() => handleShareProduct(produto)}
+                      onClick={() => handleDivulgarClick(produto)}
                       className="bg-pink-600/20 hover:bg-pink-600 text-pink-200 hover:text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border border-pink-500/30 shadow-sm"
-                      title="Compartilhar nos Stories / Redes Sociais"
+                      title="Gerar post para redes sociais"
                     >
                       📲 Divulgar
                     </button>
@@ -240,6 +248,63 @@ export default function AdminPage() {
         )}
       </div>
 
+      {/* MODAL DE DIVULGAÇÃO PARA DESKTOP */}
+      {produtoParaDivulgar && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 text-stone-900">
+            <div className="flex justify-between items-center mb-4 border-b border-stone-100 pb-3">
+              <h2 className="text-xl font-bold text-stone-800">Kit de Divulgação</h2>
+              <button 
+                onClick={() => setProdutoParaDivulgar(null)}
+                className="text-stone-400 hover:text-stone-700 font-bold text-2xl leading-none"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <p className="text-sm text-stone-600">
+                Copie a legenda abaixo e baixe a foto para publicar no Instagram, Facebook ou WhatsApp pelo computador:
+              </p>
+
+              <div className="flex gap-4 items-center bg-stone-50 p-3 rounded-xl border border-stone-200">
+                <img src={produtoParaDivulgar.imagem_url} alt="" className="w-20 h-20 object-cover rounded-lg shadow-sm" />
+                <div>
+                  <h3 className="font-bold text-stone-800">{produtoParaDivulgar.nome}</h3>
+                  <p className="text-amber-600 font-semibold text-sm">R$ {produtoParaDivulgar.preco}</p>
+                  <a 
+                    href={produtoParaDivulgar.imagem_url} 
+                    target="_blank" 
+                    download 
+                    className="inline-block mt-2 text-xs bg-stone-800 text-white px-3 py-1.5 rounded-md hover:bg-stone-700 transition-colors"
+                  >
+                    ⬇ Baixar Foto em Alta
+                  </a>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-500 uppercase mb-1">Legenda Pronta:</label>
+                <textarea 
+                  readOnly 
+                  rows={4}
+                  value={gerarTextoDivulgacao(produtoParaDivulgar)}
+                  className="w-full text-xs font-mono bg-stone-100 border border-stone-300 rounded-lg p-2.5 text-stone-800 outline-none select-all"
+                />
+              </div>
+
+              <button
+                onClick={() => copiarLegenda(produtoParaDivulgar)}
+                className="w-full py-3 bg-pink-600 hover:bg-pink-700 text-white font-medium rounded-xl transition-colors shadow-md flex items-center justify-center gap-2"
+              >
+                {copiado ? "✅ Legenda Copiada com Sucesso!" : "📋 Copiar Legenda para Publicar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CADASTRO / EDIÇÃO */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-stone-900">
