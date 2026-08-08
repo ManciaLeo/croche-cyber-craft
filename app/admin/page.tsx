@@ -8,6 +8,7 @@ export default function AdminPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [produtos, setProdutos] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [gerandoId, setGerandoId] = useState<string | null>(null); // Estado para controlar o botão de gerar story
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [nome, setNome] = useState("");
@@ -122,12 +123,9 @@ export default function AdminPage() {
       try {
         const partesUrl = imagemUrl.split('/');
         const nomeArquivo = partesUrl[partesUrl.length - 1];
-        
-        await supabase.storage
-          .from('produtos')
-          .remove([nomeArquivo]);
+        await supabase.storage.from('produtos').remove([nomeArquivo]);
       } catch (err) {
-        console.error("Erro ao remover imagem do storage:", err);
+        console.error("Erro ao remover imagem:", err);
       }
     }
 
@@ -136,41 +134,65 @@ export default function AdminPage() {
     else fetchProdutos();
   };
 
-  // Lógica de Geração de Imagem para Story corrigida
+  // =========================================================================
+  // NOVA LÓGICA DE GERAÇÃO PARA STORIES (BURLANDO O BLOQUEIO DOS CELULARES)
+  // =========================================================================
   const handleShareStory = async (produto: any) => {
-    alert("Gerando o card pro Instagram, só um segundo..."); 
-    
-    const cardDiv = document.getElementById(`card-para-story-${produto.id}`);
-    if (cardDiv) {
-      try {
-        const dataUrl = await htmlToImage.toBlob(cardDiv, {
-          cacheBust: true, // Força carregar a imagem externa
-          backgroundColor: '#ffffff' // Garante que o fundo não fique transparente/preto
+    setGerandoId(produto.id); // Muda o botão para "Gerando..."
+
+    try {
+      // 1. Baixa a imagem do Supabase e converte para Base64 (Isso impede o erro de tela preta e bloqueio de segurança CORS)
+      const response = await fetch(produto.imagem_url);
+      const blob = await response.blob();
+      const base64Url = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+
+      // 2. Coloca a imagem Base64 na tag invisível
+      const imgElement = document.getElementById(`img-story-${produto.id}`) as HTMLImageElement;
+      if (imgElement) {
+        imgElement.src = base64Url;
+      }
+
+      // 3. Dá um tempinho (meio segundo) para o celular renderizar a imagem antes de tirar o print
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const cardDiv = document.getElementById(`card-para-story-${produto.id}`);
+      if (cardDiv) {
+        // 4. Tira o print do card
+        const imageBlob = await htmlToImage.toBlob(cardDiv, {
+          backgroundColor: '#ffffff',
+          pixelRatio: 1, // Impede que o celular trave por falta de memória
         });
         
-        if (dataUrl) {
-          const file = new File([dataUrl], 'croche-fran-story.png', { type: 'image/png' });
+        if (imageBlob) {
+          // 5. Prepara o arquivo final e manda pro Instagram
+          const file = new File([imageBlob], 'croche-fran-story.png', { type: 'image/png' });
           if (navigator.share) {
             await navigator.share({
               files: [file],
               title: produto.nome,
-              text: `Confira essa peça da Crochê da Fran: ${produto.nome}`
+              text: `✨ Novidade na Crochê da Fran: ${produto.nome}`
             });
           } else {
-            alert("Compartilhamento direto não suportado neste aparelho. Salve a imagem manualmente.");
+            alert("Compartilhamento automático não suportado neste aparelho.");
           }
         }
-      } catch (err) {
-        console.error("Erro ao gerar imagem:", err);
-        alert("Ops! Não foi possível gerar a imagem da peça.");
       }
+    } catch (err) {
+      console.error("Erro ao gerar arte:", err);
+      alert("Ops! Houve um erro de conexão ao gerar a imagem. Tente novamente.");
+    } finally {
+      setGerandoId(null); // Volta o botão ao normal
     }
   };
 
   return (
-    <div className="p-8 max-w-6xl mx-auto min-h-screen bg-stone-900 text-white font-sans">
+    <div className="p-8 max-w-6xl mx-auto min-h-screen bg-stone-900 text-white font-sans overflow-x-hidden">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold">Painel Administrativo - Crochê da Fran</h1>
+        <h1 className="text-2xl font-bold">Painel Admin - Crochê da Fran</h1>
         <button onClick={handleOpenNewModal} className="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2.5 rounded-lg font-medium transition-colors">
           + Adicionar Produto
         </button>
@@ -199,8 +221,14 @@ export default function AdminPage() {
                 <td className="p-4">{produto.nome}</td>
                 <td className="p-4">R$ {produto.preco}</td>
                 <td className="p-4 text-right space-x-2">
-                  <button onClick={() => handleShareStory(produto)} className="bg-pink-600 hover:bg-pink-700 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors shadow-sm">
-                    📲 Story Insta
+                  <button 
+                    onClick={() => handleShareStory(produto)} 
+                    disabled={gerandoId === produto.id}
+                    className={`px-3 py-1.5 rounded text-xs font-bold transition-colors shadow-sm ${
+                      gerandoId === produto.id ? 'bg-stone-600 text-stone-300' : 'bg-pink-600 hover:bg-pink-700 text-white'
+                    }`}
+                  >
+                    {gerandoId === produto.id ? '⏳ Gerando...' : '📲 Story Insta'}
                   </button>
                   <button onClick={() => handleOpenEditModal(produto)} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors shadow-sm">
                     Editar
@@ -215,28 +243,30 @@ export default function AdminPage() {
         </table>
       </div>
 
-      {/* CARD INVISÍVEL PARA GERAÇÃO DA ARTE (CORRIGIDO PARA CELULAR) */}
-      {produtos.map((produto) => (
-        <div 
-          key={`story-${produto.id}`} 
-          id={`card-para-story-${produto.id}`}
-          className="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none w-[1080px] h-[1920px] bg-white flex flex-col items-center justify-center p-12"
-        >
-          <img 
-            src={produto.imagem_url} 
-            crossOrigin="anonymous" 
-            className="w-full h-[65%] object-cover rounded-[50px] shadow-2xl" 
-            alt="Produto"
-          />
-          <div className="mt-16 text-center w-full">
-            <h1 className="text-8xl font-bold text-stone-900">{produto.nome}</h1>
-            <p className="text-6xl text-amber-700 font-black mt-8">R$ {produto.preco}</p>
-            <div className="mt-20 bg-stone-900 text-white text-4xl py-8 px-16 rounded-full inline-block font-bold">
-              Crochê da Fran
+      {/* ARMAZÉM INVISÍVEL DOS CARDS (BEM LONGE DA TELA PARA NÃO ATRAPALHAR O LAYOUT) */}
+      <div className="absolute top-[-9999px] left-[-9999px]">
+        {produtos.map((produto) => (
+          <div 
+            key={`story-${produto.id}`} 
+            id={`card-para-story-${produto.id}`}
+            className="w-[1080px] h-[1920px] bg-white flex flex-col items-center justify-center p-12"
+          >
+            {/* A imagem começa sem nada, e é preenchida pelo Base64 na hora de clicar */}
+            <img 
+              id={`img-story-${produto.id}`}
+              className="w-full h-[65%] object-cover rounded-[50px] shadow-2xl" 
+              alt="Produto para Story"
+            />
+            <div className="mt-16 text-center w-full">
+              <h1 className="text-8xl font-bold text-stone-900">{produto.nome}</h1>
+              <p className="text-6xl text-amber-700 font-black mt-8">R$ {produto.preco}</p>
+              <div className="mt-20 bg-stone-900 text-white text-4xl py-8 px-16 rounded-full inline-block font-bold">
+                Crochê da Fran
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
 
       {/* MODAL DE CADASTRO / EDIÇÃO */}
       {isModalOpen && (
