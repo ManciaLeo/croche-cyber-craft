@@ -117,17 +117,37 @@ export default function AdminPage() {
 
   const handleDeleteProduct = async (id: string, imagemUrl: string) => {
     if (!confirm("Tem certeza de que deseja excluir esta peça?")) return;
+
+    if (imagemUrl) {
+      try {
+        const partesUrl = imagemUrl.split('/');
+        const nomeArquivo = partesUrl[partesUrl.length - 1];
+        
+        await supabase.storage
+          .from('produtos')
+          .remove([nomeArquivo]);
+      } catch (err) {
+        console.error("Erro ao remover imagem do storage:", err);
+      }
+    }
+
     const { error } = await supabase.from("produtos").delete().eq("id", id);
     if (error) alert("Erro ao excluir produto: " + error.message);
     else fetchProdutos();
   };
 
-  // Lógica de Geração de Imagem para Story
+  // Lógica de Geração de Imagem para Story corrigida
   const handleShareStory = async (produto: any) => {
+    alert("Gerando o card pro Instagram, só um segundo..."); 
+    
     const cardDiv = document.getElementById(`card-para-story-${produto.id}`);
     if (cardDiv) {
       try {
-        const dataUrl = await htmlToImage.toBlob(cardDiv);
+        const dataUrl = await htmlToImage.toBlob(cardDiv, {
+          cacheBust: true, // Força carregar a imagem externa
+          backgroundColor: '#ffffff' // Garante que o fundo não fique transparente/preto
+        });
+        
         if (dataUrl) {
           const file = new File([dataUrl], 'croche-fran-story.png', { type: 'image/png' });
           if (navigator.share) {
@@ -137,11 +157,12 @@ export default function AdminPage() {
               text: `Confira essa peça da Crochê da Fran: ${produto.nome}`
             });
           } else {
-            alert("Compartilhamento não suportado neste navegador.");
+            alert("Compartilhamento direto não suportado neste aparelho. Salve a imagem manualmente.");
           }
         }
       } catch (err) {
         console.error("Erro ao gerar imagem:", err);
+        alert("Ops! Não foi possível gerar a imagem da peça.");
       }
     }
   };
@@ -168,15 +189,24 @@ export default function AdminPage() {
           <tbody>
             {produtos.map((produto) => (
               <tr key={produto.id} className="border-b border-stone-700 hover:bg-stone-700/50">
-                <td className="p-4"><img src={produto.imagem_url} className="w-12 h-12 object-cover rounded" /></td>
+                <td className="p-4">
+                  {produto.imagem_url ? (
+                    <img src={produto.imagem_url} className="w-12 h-12 object-cover rounded" alt={produto.nome} />
+                  ) : (
+                    <span className="text-xs text-stone-500 italic">Sem foto</span>
+                  )}
+                </td>
                 <td className="p-4">{produto.nome}</td>
                 <td className="p-4">R$ {produto.preco}</td>
                 <td className="p-4 text-right space-x-2">
-                  <button onClick={() => handleShareStory(produto)} className="bg-pink-600 hover:bg-pink-700 text-white px-3 py-1 rounded text-xs font-bold">
+                  <button onClick={() => handleShareStory(produto)} className="bg-pink-600 hover:bg-pink-700 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors shadow-sm">
                     📲 Story Insta
                   </button>
-                  <button onClick={() => handleOpenEditModal(produto)} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-bold">
+                  <button onClick={() => handleOpenEditModal(produto)} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors shadow-sm">
                     Editar
+                  </button>
+                  <button onClick={() => handleDeleteProduct(produto.id, produto.imagem_url)} className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors shadow-sm">
+                    Excluir
                   </button>
                 </td>
               </tr>
@@ -185,14 +215,19 @@ export default function AdminPage() {
         </table>
       </div>
 
-      {/* CARD INVISÍVEL PARA GERAÇÃO DA ARTE */}
+      {/* CARD INVISÍVEL PARA GERAÇÃO DA ARTE (CORRIGIDO PARA CELULAR) */}
       {produtos.map((produto) => (
         <div 
           key={`story-${produto.id}`} 
           id={`card-para-story-${produto.id}`}
-          className="fixed -left-[9999px] top-0 w-[1080px] h-[1920px] bg-white flex flex-col items-center justify-center p-12"
+          className="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none w-[1080px] h-[1920px] bg-white flex flex-col items-center justify-center p-12"
         >
-          <img src={produto.imagem_url} className="w-full h-[65%] object-cover rounded-[50px] shadow-2xl" />
+          <img 
+            src={produto.imagem_url} 
+            crossOrigin="anonymous" 
+            className="w-full h-[65%] object-cover rounded-[50px] shadow-2xl" 
+            alt="Produto"
+          />
           <div className="mt-16 text-center w-full">
             <h1 className="text-8xl font-bold text-stone-900">{produto.nome}</h1>
             <p className="text-6xl text-amber-700 font-black mt-8">R$ {produto.preco}</p>
@@ -203,8 +238,97 @@ export default function AdminPage() {
         </div>
       ))}
 
-      {/* MODAL DE CADASTRO ... */}
-      {/* (Mantém o mesmo formulário que você já tinha) */}
+      {/* MODAL DE CADASTRO / EDIÇÃO */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-stone-900">
+            <div className="flex justify-between items-center mb-4 border-b border-stone-100 pb-3">
+              <h2 className="text-xl font-bold text-stone-800">{editingId ? "Editar Peça" : "Nova Peça"}</h2>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="text-stone-400 hover:text-stone-700 font-bold text-2xl leading-none"
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProduct} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Nome da peça</label>
+                <input
+                  required
+                  type="text"
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  className="w-full border border-stone-300 rounded-lg p-2.5 focus:ring-2 focus:ring-amber-500 outline-none text-black bg-stone-50"
+                  placeholder="Ex: Jogo de Banheiro Crudo"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Preço (R$)</label>
+                <input
+                  required
+                  type="number"
+                  step="0.01"
+                  value={preco}
+                  onChange={(e) => setPreco(e.target.value)}
+                  className="w-full border border-stone-300 rounded-lg p-2.5 focus:ring-2 focus:ring-amber-500 outline-none text-black bg-stone-50"
+                  placeholder="Ex: 150.00"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Foto da Peça</label>
+                {imagemAtualUrl && !imagemFile && (
+                  <div className="mb-2 flex items-center gap-2 text-xs text-stone-500 bg-stone-50 p-2 rounded-lg border border-stone-200">
+                    <img src={imagemAtualUrl} alt="Atual" className="w-10 h-10 object-cover rounded" />
+                    <span>Usando foto atual cadastrada</span>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      setImagemFile(e.target.files[0]);
+                    }
+                  }}
+                  className="w-full border border-stone-300 rounded-lg p-2 text-stone-700 bg-stone-50 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-amber-100 file:text-amber-800 hover:file:bg-amber-200 cursor-pointer"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Descrição</label>
+                <textarea
+                  rows={3}
+                  value={descricao}
+                  onChange={(e) => setDescricao(e.target.value)}
+                  className="w-full border border-stone-300 rounded-lg p-2.5 focus:ring-2 focus:ring-amber-500 outline-none text-black bg-stone-50"
+                  placeholder="Detalhes sobre a linha, tamanho..."
+                />
+              </div>
+
+              <div className="pt-3 flex justify-end gap-3 border-t border-stone-100">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2.5 text-stone-600 hover:bg-stone-100 rounded-lg font-medium transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-5 py-2.5 bg-stone-900 text-white rounded-lg font-medium hover:bg-stone-800 disabled:opacity-50 transition-colors shadow-md"
+                >
+                  {loading ? "Salvando..." : editingId ? "Salvar Alterações" : "Salvar Produto"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
